@@ -1,0 +1,28 @@
+name: Deploy AWX
+
+on:
+  workflow_dispatch:
+    inputs:
+      host_ip:
+        description: "IP da VM alvo (vazio = usa a variável AWX_HOST_IP do repositório)"
+        required: false
+
+concurrency:
+  group: deploy-awx
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, siquela-macbook-runner]
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar collections do Ansible
+        run: ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: Instalar/atualizar AWX
+        env:
+          AWX_HOST_IP: ${{ inputs.host_ip || vars.AWX_HOST_IP }}
+          SSH_KEY: ${{ vars.AWX_SSH_KEY_PATH }}
+        run: ./scripts/install.sh
