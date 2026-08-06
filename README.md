@@ -36,15 +36,74 @@ awx-infra/
 └── docs/                        # Documentação complementar
 ```
 
-*(apenas a estrutura de diretórios está definida por enquanto — conteúdo de cada parte será adicionado e documentado aqui à medida que for implementado)*
+_(apenas a estrutura de diretórios está definida por enquanto — conteúdo de cada parte será adicionado e documentado aqui à medida que for implementado)_
 
 ---
 
 ## Contexto e decisões
 
 - Épico de origem: ODM-809
-- Documento de avaliação técnica e decisão de arquitetura: `docs/AWX_Avaliacao_Instalacao_Legada.md` *(a adicionar)*
+- Documento de avaliação técnica e decisão de arquitetura: `docs/AWX_Avaliacao_Instalacao_Legada.md` _(a adicionar)_
 - Versão de referência do awx-operator (instalação legada, usada como base): `2.19.1` (AWX `24.6.1`) — validar se ainda é a mais recente antes de aplicar
+
+---
+
+## Formatação de código
+
+Este repositório usa o [Prettier](https://prettier.io/) para manter a formatação dos arquivos (YAML, Markdown, JSON) consistente entre todos os contribuidores.
+
+### Instalação
+
+O Prettier roda sobre Node.js/npm. Instale o Node.js de acordo com o seu sistema operacional:
+
+**macOS** (via [Homebrew](https://brew.sh/)):
+
+```bash
+brew install node
+```
+
+**Linux (Debian/Ubuntu)**:
+
+```bash
+sudo apt update
+sudo apt install nodejs npm
+```
+
+**Linux (Fedora/RHEL/CentOS)**:
+
+```bash
+sudo dnf install nodejs npm
+```
+
+**Windows**:
+
+- Via [instalador oficial](https://nodejs.org/): baixe e execute o `.msi` da versão LTS.
+- Ou via [Chocolatey](https://chocolatey.org/) (PowerShell como administrador):
+
+  ```powershell
+  choco install nodejs-lts
+  ```
+
+- Ou via [winget](https://learn.microsoft.com/windows/package-manager/winget/):
+
+  ```powershell
+  winget install OpenJS.NodeJS.LTS
+  ```
+
+Com o Node.js/npm instalados, instale as dependências do projeto (o Prettier) a partir da raiz do repositório:
+
+```bash
+npm install
+```
+
+### Uso
+
+```bash
+npx prettier --check .   # verifica se há arquivos fora do padrão, sem alterá-los
+npx prettier --write .   # formata todos os arquivos automaticamente
+```
+
+A configuração fica em `.prettierrc.json`; arquivos ignorados pela formatação estão listados em `.prettierignore`.
 
 ---
 
