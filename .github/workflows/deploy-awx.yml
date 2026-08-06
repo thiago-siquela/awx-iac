@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       host_ip:
-        description: "IP da VM alvo (vazio = usa a variável AWX_HOST_IP do repositório)"
+        description: "IP do host onde o AWX será instalado (opcional, se não informado será usado o valor da variável AWX_HOST_IP)"
         required: false
 
 concurrency:

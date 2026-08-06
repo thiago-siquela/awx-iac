@@ -45,6 +45,67 @@ _(`execution-environments/` e overlays por ambiente em `kubernetes/awx/overlays/
 
 ---
 
+## Pré-requisitos na VM
+
+Este repositório assume que a VM já existe (provisionamento é responsabilidade do IaC da Vitru — ver [Visão geral](#visão-geral)), mas ela precisa ter, antes da primeira execução: um usuário de serviço com sudo sem senha, e a chave pública SSH desse usuário autorizada. Nenhum desses dois passos é feito pelo Ansible deste repositório — são pré-condição pra ele conseguir rodar.
+
+### 1. Usuário `ansible-svc`
+
+O Ansible se conecta como esse usuário (nome padrão; configurável via `awx_ansible_user`, ver [ansible/inventory/hosts.yml](ansible/inventory/hosts.yml)) e usa `become` (sudo) em praticamente todas as tasks — instalar o RKE2, habilitar o serviço `rke2-server`, ajustar permissões do kubeconfig, etc. Como o [ansible.cfg](ansible.cfg) define `become_ask_pass = False`, o Ansible **nunca** pergunta senha de sudo interativamente — então o `ansible-svc` precisa ter sudo **sem senha** (`NOPASSWD`), senão qualquer task que precise de root trava/falha.
+
+Na VM, como root (ou outro usuário com sudo):
+
+```bash
+sudo useradd -m -s /bin/bash ansible-svc
+
+echo "ansible-svc ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/ansible-svc
+sudo chmod 440 /etc/sudoers.d/ansible-svc
+```
+
+### 2. Chave SSH
+
+A autenticação é sempre por chave — não há suporte a senha de SSH neste fluxo (`ansible_ssh_private_key_file` no inventário). O par de chaves é gerado na máquina que roda o Ansible (o runner), e só a **chave pública** vai para a VM; a privada nunca sai do runner.
+
+Na máquina que roda o Ansible:
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/awx_ansible -C "ansible-svc@awx-iac" -N ""
+```
+
+Autorizar a chave pública para o usuário `ansible-svc` na VM (esse passo único ainda precisa de outro método de acesso à VM, já que a chave nova ainda não está autorizada):
+
+```bash
+ssh-copy-id -i ~/.ssh/awx_ansible.pub ansible-svc@<IP_DA_VM>
+```
+
+A chave privada (`~/.ssh/awx_ansible`, sem `.pub`) é o valor que vai em `SSH_KEY=` no `scripts/install.sh` (ou `awx_ssh_key_path` diretamente no Ansible) — se nada for informado, o padrão é `~/.ssh/id_ed25519` (ver [ansible/inventory/hosts.yml:9](ansible/inventory/hosts.yml)).
+
+### 3. Validar o acesso
+
+Antes de rodar o playbook, confirme que a chave e o sudo sem senha estão funcionando — os dois pontos que mais costumam travar uma primeira instalação:
+
+```bash
+# Autentica por chave, sem pedir senha
+ssh -i ~/.ssh/awx_ansible ansible-svc@<IP_DA_VM> "whoami"
+
+# Confirma sudo sem senha (é exatamente o que o `become` do Ansible vai usar)
+ssh -i ~/.ssh/awx_ansible ansible-svc@<IP_DA_VM> "sudo -n true && echo 'sudo OK'"
+```
+
+Ou, de forma mais fiel ao que o playbook de fato faz, direto pelo Ansible:
+
+```bash
+ansible awx-server -i ansible/inventory/hosts.yml \
+  -e awx_host_ip=<IP_DA_VM> -e awx_ssh_key_path=~/.ssh/awx_ansible \
+  -m ping
+```
+
+Uma resposta `"ping": "pong"` confirma que chave e sudo estão OK e o [scripts/install.sh](scripts/install.sh) pode rodar.
+
+> Nota: o `ansible.cfg` também define `host_key_checking = False`, então a primeira conexão SSH não vai pedir confirmação de host key. Isso é aceitável numa rede interna controlada, mas é uma checagem de segurança que fica deliberadamente desligada — vale ter em mente.
+
+---
+
 ## Como executar
 
 Pré-requisito, uma vez, na máquina que vai rodar o Ansible (ex: o runner local):
@@ -77,7 +138,7 @@ kubectl get secret awx-admin-password -n awx -o jsonpath='{.data.password}' | ba
 Workflows em `.github/workflows/` (GitHub Actions):
 
 - **`lint.yml`** — roda em todo push/PR, em runner hospedado pelo GitHub (não precisa de acesso à rede da VM). Valida formatação (Prettier), `ansible-lint`, syntax-check do playbook, renderização do Kustomize e shellcheck dos scripts.
-- **Deploy automatizado** _(planejado, ainda não implementado)_ — vai rodar no runner self-hosted `siquela-macbook-runner` (o único com rota até a rede privada da VM), disparado automaticamente no push para `main` e também sob demanda (`workflow_dispatch`), com um gate de aprovação manual (GitHub Environment `production`) antes de tocar na infraestrutura real.
+- **Deploy automatizado** - deploy automático, instalação e configuração do AWX Tower orquestrado por Kubernets. Trigger de disparo manual, pode informar o IP da máquina alvo (onde será instalado), caso não for informado, será pego o valor definido na variável do repositório **AWX_HOST_IP**
 
 ---
 
@@ -156,14 +217,3 @@ git config core.hooksPath .githooks
 ```
 
 Isso é um ajuste local por clone (não é versionado pelo git em si) — precisa rodar uma vez em cada máquina/checkout. O `.editorconfig` do repositório complementa isso configurando o editor (indentação, newline final, etc.) durante a edição.
-
----
-
-## Próximos passos
-
-- [x] Preencher playbooks de bootstrap do RKE2
-- [x] Preencher `kustomization.yaml` e Custom Resource do AWX
-- [x] Definir mecanismo de secrets (senha gerada automaticamente pelo awx-operator; nunca exposta em log/CI)
-- [x] Lint e validação automatizados (`lint.yml`)
-- [ ] Implementar o workflow de deploy automatizado no runner self-hosted (`siquela-macbook-runner`)
-- [ ] Documentar processo de backup e restore
