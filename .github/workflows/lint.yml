@@ -1,0 +1,56 @@
+name: Lint & Validate
+
+on:
+  push:
+    paths:
+      - "ansible/**"
+      - "kubernetes/**"
+      - "scripts/**"
+      - ".github/workflows/**"
+  pull_request:
+    paths:
+      - "ansible/**"
+      - "kubernetes/**"
+      - "scripts/**"
+      - ".github/workflows/**"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependências (Prettier)
+        run: npm ci
+
+      - name: Checar formatação (Prettier)
+        run: npx prettier --check .
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar ansible-lint
+        run: pip install ansible-lint
+
+      - name: Instalar collections do Ansible
+        run: ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: ansible-lint
+        run: ansible-lint ansible/
+
+      - name: Syntax check do playbook
+        run: ansible-playbook ansible/playbooks/site.yml --syntax-check
+
+      - name: Instalar kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Validar renderização do Kustomize (AWX)
+        run: kubectl kustomize kubernetes/awx/base > /dev/null
+
+      - name: Shellcheck nos scripts
+        run: shellcheck scripts/*.sh
