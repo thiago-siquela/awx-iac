@@ -147,6 +147,16 @@ npx prettier --write .   # formata todos os arquivos automaticamente
 
 A configuração fica em `.prettierrc.json`; arquivos ignorados pela formatação estão listados em `.prettierignore`.
 
+### Pre-commit hook (recomendado)
+
+Depois de clonar o repositório, ative o hook que formata automaticamente os arquivos staged antes de cada commit (evita que problemas de formatação só sejam pegos lá na CI):
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Isso é um ajuste local por clone (não é versionado pelo git em si) — precisa rodar uma vez em cada máquina/checkout. O `.editorconfig` do repositório complementa isso configurando o editor (indentação, newline final, etc.) durante a edição.
+
 ---
 
 ## Próximos passos

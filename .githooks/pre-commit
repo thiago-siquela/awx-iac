@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Formata os arquivos staged com Prettier antes do commit, evitando que
+# problemas de formatação (ex: newline final faltando) cheguem até a CI.
+
+set -euo pipefail
+
+files=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$files" ] && exit 0
+
+echo "$files" | xargs npx prettier --write --ignore-unknown
+echo "$files" | xargs git add
