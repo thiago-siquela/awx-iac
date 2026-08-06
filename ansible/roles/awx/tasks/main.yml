@@ -45,10 +45,12 @@
 
 - name: Aguardar todos os deployments do AWX ficarem prontos
   ansible.builtin.shell: |
-    set -e
+    set -eo pipefail
     kubectl get deployments -n {{ awx_namespace }} \
       -o jsonpath='{range .items[*]}{.status.readyReplicas}{"/"}{.spec.replicas}{"\n"}{end}' \
       | awk -F/ '{ if ($1 != $2 || $1 == "") exit 1 }'
+  args:
+    executable: /bin/bash
   environment:
     KUBECONFIG: "{{ awx_kubeconfig }}"
   register: awx_ready_check

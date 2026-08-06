@@ -5,7 +5,7 @@ awx_namespace: "awx"
 # Nome do recurso AWX a ser criado no cluster.
 awx_instance_name: "awx"
 
-#Diretório local (máquina de controle) onde estão os manifesrsrs do Kustomize
+# Diretório local (máquina de controle) onde estão os manifests do Kustomize
 awx_kustomize_src: "{{ playbook_dir }}/../../kubernetes/awx/base"
 
 # Diretório remoto (na VM) para onde os manifests serão copiados
