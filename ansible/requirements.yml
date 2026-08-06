@@ -1,0 +1,6 @@
+---
+# Collections necessárias para rodar os playbooks deste repositório.
+# Instalar com: ansible-galaxy collection install -r ansible/requirements.yml
+collections:
+  - name: ansible.posix
+    version: ">=1.5.0"

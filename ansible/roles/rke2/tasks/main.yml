@@ -1,11 +1,9 @@
 ---
-
 # Instalação e habilitação do RKE2 (single-node, control-plane + worker) via scripts oficiais do RKE2.
-# Idempotente: se já estiver instalado, os passos de instalação serão ignorados. 
-
+# Idempotente: se já estiver instalado, os passos de instalação serão ignorados.
 
 - name: Verificar se o RKE2 já está instalado
-  ansible.builtin.stat: 
+  ansible.builtin.stat:
     path: /usr/local/bin/rke2
   register: rke2_binary
 
@@ -19,14 +17,12 @@
     creates: /usr/local/bin/rke2
   when: not rke2_binary.stat.exists
 
-
 - name: Habilitar e iniciar o serviço rke2-server
   ansible.builtin.systemd:
     name: rke2-server
     enabled: true
     state: started
   register: rke2_service
-
 
 - name: Aguardar o kubeconfig ser gerado pelo RKE2
   ansible.builtin.wait_for:
@@ -45,7 +41,7 @@
     path: /etc/rancher/rke2/rke2.yaml
     mode: "0640"
     group: "{{ ansible_user }}"
- 
+
 - name: Aguardar o node ficar em estado Ready
   ansible.builtin.shell: >
     KUBECONFIG=/etc/rancher/rke2/rke2.yaml
@@ -55,7 +51,7 @@
   retries: 30
   delay: 10
   changed_when: false
- 
+
 - name: Exibir status final do node
   ansible.builtin.debug:
     msg: "RKE2 instalado e node em estado: {{ rke2_node_status.stdout }}"

@@ -1,0 +1,19 @@
+---
+apiVersion: awx.ansible.com/v1beta1
+kind: AWX
+metadata:
+  name: awx
+  namespace: awx
+spec:
+  admin_user: admin
+  # admin_password_secret_name aponta para um Secret criado à parte (não versionado
+  # em texto plano). Se omitido, o operator gera uma senha aleatória automaticamente
+  # e grava num Secret chamado "<name>-admin-password" no namespace.
+  # admin_password_secret_name: awx-admin-password
+
+  service_type: NodePort
+
+  # local-path é nativo do RKE2, sem dependência extra (diferente do Longhorn
+  # usado na instalação legada). Adequado para cluster single-node.
+  postgres_storage_class: local-path
+  postgres_data_volume_init: true

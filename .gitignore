@@ -1,1 +1,32 @@
+# Claude
+.claude/
+
+# Ansible
+*.retry
+ansible/inventory/group_vars/all/vars.local.yml
+ 
+# Segredos e chaves
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+.git-credentials
+ 
+# Kubeconfig local (se copiado da VM para debug)
+kubeconfig*
+*.kubeconfig
+ 
+# macOS
+.DS_Store
+ 
+# Editor
+.vscode/
+.idea/
+ 
+# Terraform (se algum dia entrar IaC de provisionamento neste repo)
+*.tfstate
+*.tfstate.*
+.terraform/
+ 
+ # Node.js
 node_modules/

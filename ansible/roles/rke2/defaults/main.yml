@@ -1,0 +1,14 @@
+---
+# Versão do RKE2 a ser instalada. Se não for especificada, será instalada a última versão estável.
+rke2_version: ""
+
+# Tipo de instalação do RKE2: "server" (control-plane + worker) ou "agent" (worker).
+rke2_type: "server"
+
+# Diretório onde os binários do RKE2 serão instalados.
+rke2_bin_dir: "/var/lib/rancher/rke2/bin"
+
+# Habilita o kubectl no PATH do usuário (via symlink), sem precisar de instalação separada
+rke2_create_kubectl_symlink: true
+
+rke2_default_storage_note: "avaliar local-path vs longhorn no momento do CR do AWX"

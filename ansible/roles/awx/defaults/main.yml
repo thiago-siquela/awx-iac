@@ -1,0 +1,18 @@
+---
+# Namespace onde o AWX será instalado.
+awx_namespace: "awx"
+
+# Nome do recurso AWX a ser criado no cluster.
+awx_instance_name: "awx"
+
+#Diretório local (máquina de controle) onde estão os manifesrsrs do Kustomize
+awx_kustomize_src: "{{ playbook_dir }}/../../kubernetes/awx/base"
+
+# Diretório remoto (na VM) para onde os manifests serão copiados
+awx_kustomize_remote_dir: /opt/awx-infra/kubernetes/awx/base
+
+# Kubeconfig gerado pelo RKE2, já presente na própria VM
+awx_kubeconfig: /etc/rancher/rke2/rke2.yaml
+
+# Tempo máximo de espera até os deployments do AWX ficarem prontos (segundos)
+awx_ready_timeout: 600

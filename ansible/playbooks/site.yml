@@ -1,0 +1,10 @@
+---
+# Playbook principal - bootstrap do cluster RKE2 (single-node) e instalação do AWX Tower via Operator.
+
+- name: Bootstrap do cluster RKE2 (single-node) para o AWX
+  hosts: awx-server
+  gather_facts: true
+
+  roles:
+    - rke2
+    - awx

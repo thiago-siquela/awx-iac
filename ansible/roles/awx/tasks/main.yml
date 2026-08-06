@@ -1,0 +1,75 @@
+---
+# Faz o deploy do AWX via awx-operator/Kustomize, rodando o kubectl
+# diretamente na VM (evita ter que ajustar o kubeconfig para acesso remoto)
+
+- name: Criar diretório remoto para os manifests do AWX
+  ansible.builtin.file:
+    path: "{{ awx_kustomize_remote_dir }}"
+    state: directory
+    mode: "0750"
+
+- name: Copiar manifests do AWX para a VM
+  ansible.posix.synchronize:
+    src: "{{ awx_kustomize_src }}/"
+    dest: "{{ awx_kustomize_remote_dir }}/"
+
+- name: Aplicar o awx-operator via kustomize
+  ansible.builtin.command:
+    cmd: kubectl apply -k {{ awx_kustomize_remote_dir }}
+  environment:
+    KUBECONFIG: "{{ awx_kubeconfig }}"
+  register: awx_operator_apply_result
+  changed_when: "'unchanged' not in awx_operator_apply_result.stdout"
+
+- name: Aguardar o awx-operator ficar pronto
+  ansible.builtin.command:
+    cmd: kubectl -n {{ awx_namespace }} rollout status deployment/awx-operator-controller-manager --timeout=180s
+  environment:
+    KUBECONFIG: "{{ awx_kubeconfig }}"
+  changed_when: false
+
+- name: Aguardar o CRD do AWX ser estabelecido
+  ansible.builtin.command:
+    cmd: kubectl wait --for=condition=Established crd/awxs.awx.ansible.com --timeout=60s
+  environment:
+    KUBECONFIG: "{{ awx_kubeconfig }}"
+  changed_when: false
+
+- name: Aplicar a Custom Resource do AWX
+  ansible.builtin.command:
+    cmd: kubectl apply -f {{ awx_kustomize_remote_dir }}/awx-instance.yaml
+  environment:
+    KUBECONFIG: "{{ awx_kubeconfig }}"
+  register: awx_cr_apply_result
+  changed_when: "'unchanged' not in awx_cr_apply_result.stdout"
+
+- name: Aguardar todos os deployments do AWX ficarem prontos
+  ansible.builtin.shell: |
+    set -e
+    kubectl get deployments -n {{ awx_namespace }} \
+      -o jsonpath='{range .items[*]}{.status.readyReplicas}{"/"}{.spec.replicas}{"\n"}{end}' \
+      | awk -F/ '{ if ($1 != $2 || $1 == "") exit 1 }'
+  environment:
+    KUBECONFIG: "{{ awx_kubeconfig }}"
+  register: awx_ready_check
+  until: awx_ready_check.rc == 0
+  retries: "{{ (awx_ready_timeout | int) // 10 }}"
+  delay: 10
+  changed_when: false
+
+- name: Confirmar que o Secret de senha do admin foi criado pelo operator
+  ansible.builtin.command:
+    cmd: kubectl get secret {{ awx_instance_name }}-admin-password -n {{ awx_namespace }}
+  environment:
+    KUBECONFIG: "{{ awx_kubeconfig }}"
+  changed_when: false
+
+# A senha nunca é lida/registrada pelo Ansible (evita expor no log/stdout do
+# playbook). Ela fica só no Secret do cluster; quem precisar busca sob demanda.
+- name: Exibir instruções de acesso ao AWX
+  ansible.builtin.debug:
+    msg:
+      - "AWX instalado com sucesso."
+      - "Usuário admin: admin"
+      - "Para obter a senha, rode (na VM ou com o kubeconfig do cluster):"
+      - "kubectl get secret {{ awx_instance_name }}-admin-password -n {{ awx_namespace }} -o jsonpath='{.data.password}' | base64 -d"
