@@ -11,7 +11,10 @@ spec:
   # e grava num Secret chamado "<name>-admin-password" no namespace.
   # admin_password_secret_name: awx-admin-password
 
+  # Porta fixa em vez de deixar o Kubernetes escolher uma aleatória (30000-32767)
+  # na primeira criação do Service — assim o acesso ao painel é previsível.
   service_type: NodePort
+  nodeport_port: 30080
 
   # local-path é nativo do RKE2, sem dependência extra (diferente do Longhorn
   # usado na instalação legada). Adequado para cluster single-node.

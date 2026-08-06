@@ -66,12 +66,23 @@
     KUBECONFIG: "{{ awx_kubeconfig }}"
   changed_when: false
 
+# NodePort expõe o painel direto no IP da VM — não precisa de port-forward nem
+# de ingress. Não é segredo, então pode ser lido e exibido normalmente.
+- name: Obter a porta do painel do AWX (NodePort)
+  ansible.builtin.command:
+    cmd: kubectl get svc {{ awx_instance_name }}-service -n {{ awx_namespace }} -o jsonpath='{.spec.ports[0].nodePort}'
+  environment:
+    KUBECONFIG: "{{ awx_kubeconfig }}"
+  register: awx_node_port
+  changed_when: false
+
 # A senha nunca é lida/registrada pelo Ansible (evita expor no log/stdout do
 # playbook). Ela fica só no Secret do cluster; quem precisar busca sob demanda.
 - name: Exibir instruções de acesso ao AWX
   ansible.builtin.debug:
     msg:
       - "AWX instalado com sucesso."
+      - "Painel: http://{{ awx_host_ip }}:{{ awx_node_port.stdout }}"
       - "Usuário admin: admin"
       - "Para obter a senha, rode (na VM ou com o kubeconfig do cluster):"
       - "kubectl get secret {{ awx_instance_name }}-admin-password -n {{ awx_namespace }} -o jsonpath='{.data.password}' | base64 -d"
