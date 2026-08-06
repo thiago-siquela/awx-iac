@@ -21,22 +21,63 @@ A infraestrutura da VM (IaC de provisionamento) **não** está neste repositóri
 ## Estrutura do repositório
 
 ```
-awx-infra/
-├── ansible/                    # Bootstrap do SO + cluster RKE2
-│   ├── inventory/
-│   ├── playbooks/
+awx-iac/
+├── ansible.cfg                  # Configuração do Ansible (precisa ficar na raiz: é
+│                                 # daqui que os comandos/CI são invocados)
+├── ansible/
+│   ├── inventory/                # Inventário (host da VM, variáveis de conexão)
+│   ├── playbooks/                 # Playbook principal (site.yml)
+│   ├── requirements.yml           # Collections necessárias (ansible.posix)
 │   └── roles/
+│       ├── rke2/                  # Bootstrap do cluster RKE2
+│       └── awx/                   # Deploy do awx-operator + Custom Resource do AWX
 ├── kubernetes/
 │   └── awx/
-│       ├── base/                # Kustomization + Custom Resource do AWX
-│       └── overlays/            # Customizações por ambiente
-├── execution-environments/      # EEs customizadas (ex: integrações específicas)
-├── scripts/                     # Backup, health check, utilitários
-├── ci/                          # Definição do pipeline
-└── docs/                        # Documentação complementar
+│       └── base/                  # Kustomization do awx-operator + CR do AWX
+├── scripts/                       # install.sh (wrapper do playbook) e utilitários
+├── .github/
+│   └── workflows/                 # Pipeline CI/CD (lint/validação implementados;
+│                                   # deploy automatizado em runner self-hosted em andamento)
+└── docs/                          # Documentação complementar
 ```
 
-_(apenas a estrutura de diretórios está definida por enquanto — conteúdo de cada parte será adicionado e documentado aqui à medida que for implementado)_
+_(`execution-environments/` e overlays por ambiente em `kubernetes/awx/overlays/` ainda não existem — serão adicionados quando houver necessidade real de EE customizada ou de diferenciar ambientes)_
+
+---
+
+## Como executar
+
+Pré-requisito, uma vez, na máquina que vai rodar o Ansible (ex: o runner local):
+
+```bash
+ansible-galaxy collection install -r ansible/requirements.yml
+```
+
+Instalação — bootstrap do RKE2 + deploy do AWX na VM alvo:
+
+```bash
+AWX_HOST_IP=10.190.1.250 SSH_KEY=~/.ssh/awx_ansible ./scripts/install.sh
+```
+
+Isso roda o playbook [ansible/playbooks/site.yml](ansible/playbooks/site.yml), que executa em sequência:
+
+1. Role `rke2` — instala e inicia o RKE2 na VM (idempotente)
+2. Role `awx` — aplica o awx-operator via Kustomize (versão pinada) e a Custom Resource do AWX; tudo roda com `kubectl` localmente na própria VM, usando o kubeconfig gerado pelo RKE2, sem precisar expor a API do cluster para fora da rede privada
+
+A senha de admin é gerada automaticamente pelo awx-operator e **nunca é impressa pelo Ansible**. Ao final da execução, o playbook mostra o comando para buscá-la sob demanda:
+
+```bash
+kubectl get secret awx-admin-password -n awx -o jsonpath='{.data.password}' | base64 -d
+```
+
+---
+
+## CI/CD
+
+Workflows em `.github/workflows/` (GitHub Actions):
+
+- **`lint.yml`** — roda em todo push/PR, em runner hospedado pelo GitHub (não precisa de acesso à rede da VM). Valida formatação (Prettier), `ansible-lint`, syntax-check do playbook, renderização do Kustomize e shellcheck dos scripts.
+- **Deploy automatizado** _(planejado, ainda não implementado)_ — vai rodar no runner self-hosted `siquela-macbook-runner` (o único com rota até a rede privada da VM), disparado automaticamente no push para `main` e também sob demanda (`workflow_dispatch`), com um gate de aprovação manual (GitHub Environment `production`) antes de tocar na infraestrutura real.
 
 ---
 
@@ -44,7 +85,8 @@ _(apenas a estrutura de diretórios está definida por enquanto — conteúdo de
 
 - Épico de origem: ODM-809
 - Documento de avaliação técnica e decisão de arquitetura: `docs/AWX_Avaliacao_Instalacao_Legada.md` _(a adicionar)_
-- Versão de referência do awx-operator (instalação legada, usada como base): `2.19.1` (AWX `24.6.1`) — validar se ainda é a mais recente antes de aplicar
+- Versão de referência do awx-operator: `2.19.1` (AWX `24.6.1`) — também a mais recente disponível; o projeto AWX está com releases pausados desde jul/2024 por conta de uma refatoração de arquitetura em andamento, então não há versão mais nova a validar por enquanto.
+- Storage do Postgres do AWX: `local-path` (nativo do RKE2), em vez do Longhorn usado na instalação legada — dispensa dependência extra num cluster single-node.
 
 ---
 
@@ -109,8 +151,9 @@ A configuração fica em `.prettierrc.json`; arquivos ignorados pela formataçã
 
 ## Próximos passos
 
-- [ ] Preencher playbooks de bootstrap do RKE2
-- [ ] Preencher `kustomization.yaml` e Custom Resource do AWX
-- [ ] Definir mecanismo de secrets
-- [ ] Configurar pipeline CI/CD (runner interno, rede não tem rota pública)
+- [x] Preencher playbooks de bootstrap do RKE2
+- [x] Preencher `kustomization.yaml` e Custom Resource do AWX
+- [x] Definir mecanismo de secrets (senha gerada automaticamente pelo awx-operator; nunca exposta em log/CI)
+- [x] Lint e validação automatizados (`lint.yml`)
+- [ ] Implementar o workflow de deploy automatizado no runner self-hosted (`siquela-macbook-runner`)
 - [ ] Documentar processo de backup e restore
