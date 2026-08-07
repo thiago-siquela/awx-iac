@@ -2,6 +2,25 @@
 # Instalação e habilitação do RKE2 (single-node, control-plane + worker) via scripts oficiais do RKE2.
 # Idempotente: se já estiver instalado, os passos de instalação serão ignorados.
 
+# Relógio dessincronizado quebra a instalação do RKE2 (validação TLS ao
+# baixar o instalador, e o subscription-manager em VMs RHEL-based também
+# reclama). Garantir isso logo no início evita falha silenciosa mais na
+# frente.
+- name: Instalar chrony (sincronização de horário)
+  ansible.builtin.package:
+    name: chrony
+    state: present
+
+- name: Habilitar e iniciar o chronyd
+  ansible.builtin.systemd:
+    name: chronyd
+    enabled: true
+    state: started
+
+- name: Forçar sincronização imediata do relógio
+  ansible.builtin.command: chronyc makestep
+  changed_when: false
+
 - name: Verificar se o RKE2 já está instalado
   ansible.builtin.stat:
     path: /usr/local/bin/rke2
